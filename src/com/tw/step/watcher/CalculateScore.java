@@ -3,25 +3,31 @@ package com.tw.step.watcher;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 public class CalculateScore {
-    private final String name;
+    private final Stream<String> files;
 
-    public CalculateScore(String name) {
-        this.name = name;
+    public CalculateScore(Stream<String> files) {
+        this.files = files;
     }
 
-    public int calculate() throws IOException {
-        int sum = 0;
+    public int calculateSum() throws IOException {
+        AtomicInteger sum = new AtomicInteger(0);
 
-        try (FileReader reader = new FileReader("./resources/" + this.name)) {
-            Scanner scanner = new Scanner(reader);
-            while (scanner.hasNext()) {
-                sum += Integer.parseInt(scanner.next());
+        this.files.forEach(file -> {
+            try (FileReader reader = new FileReader("./resources/" + file)) {
+                Scanner scanner = new Scanner(reader);
+                while (scanner.hasNext()) {
+                    sum.addAndGet(Integer.parseInt(scanner.next()));
+                }
+
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
+        });
 
-        }
-
-        return sum;
+        return sum.get();
     }
 }

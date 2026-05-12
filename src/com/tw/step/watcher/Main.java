@@ -2,7 +2,6 @@ package com.tw.step.watcher;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class Main {
@@ -17,24 +16,16 @@ public class Main {
                 StandardWatchEventKinds.ENTRY_MODIFY
         );
 
-        System.out.println("Watching scores...");
-
-
         while (true) {
-            AtomicInteger finalSum = new AtomicInteger();
+            int finalSum = 0 ;
             try (Stream<Path> list = Files.list(path)) {
-                list.filter((l) -> l.getFileName().toString().startsWith("score_") && l.getFileName().toString().endsWith(".txt"))
-                        .forEach((f) -> {
-                            CalculateScore calculateScore = new CalculateScore(f.getFileName().toString());
-                            try {
-                                finalSum.addAndGet(calculateScore.calculate());
-                            } catch (IOException e) {
-                                System.out.println("File not found :" + e.getMessage());
-                            }
+                Stream<String> files = list.filter((l) -> l.getFileName().toString().startsWith("score_") && l.getFileName().toString().endsWith(".txt"))
+                        .map((f) -> f.getFileName().toString());
 
-                        });
+                CalculateScore calculateScore = new CalculateScore(files);
+                finalSum = calculateScore.calculateSum();
+                System.out.println("Sum: " + finalSum);
             }
-            System.out.println("Sum: " + finalSum);
 
 
             WatchKey key = watchService.take();
@@ -42,7 +33,6 @@ public class Main {
             for (WatchEvent<?> event : key.pollEvents()) {
                 Path fileName = (Path) event.context();
                 String name = fileName.toString();
-
             }
 
 
