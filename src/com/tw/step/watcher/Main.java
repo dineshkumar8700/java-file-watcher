@@ -1,20 +1,53 @@
 package com.tw.step.watcher;
 
-import java.io.FileReader;
 import java.io.IOException;
-import java.util.Scanner;
+import java.nio.file.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 public class Main {
-    static void main() throws IOException {
-        int sum = 0;
+    public static void main() throws IOException, InterruptedException {
+        Path path = Paths.get("./resources");
+        WatchService watchService = FileSystems.getDefault().newWatchService();
 
-        try (FileReader fileReader = new FileReader("./resources/score_test.txt")) {
-            Scanner scanner = new Scanner(fileReader);
-            while (scanner.hasNext()) {
-                sum += Integer.parseInt(scanner.next());
+        path.register(
+                watchService,
+                StandardWatchEventKinds.ENTRY_CREATE,
+                StandardWatchEventKinds.ENTRY_DELETE,
+                StandardWatchEventKinds.ENTRY_MODIFY
+        );
+
+        System.out.println("Watching scores...");
+
+
+        while (true) {
+            AtomicInteger finalSum = new AtomicInteger();
+            try (Stream<Path> list = Files.list(path)) {
+                list.filter((l) -> l.getFileName().toString().startsWith("score_") && l.getFileName().toString().endsWith(".txt"))
+                        .forEach((f) -> {
+                            CalculateScore calculateScore = new CalculateScore(f.getFileName().toString());
+                            try {
+                                finalSum.addAndGet(calculateScore.calculate());
+                            } catch (IOException e) {
+                                System.out.println("File not found :" + e.getMessage());
+                            }
+
+                        });
+            }
+            System.out.println("Sum: " + finalSum);
+
+
+            WatchKey key = watchService.take();
+
+            for (WatchEvent<?> event : key.pollEvents()) {
+                Path fileName = (Path) event.context();
+                String name = fileName.toString();
+
             }
 
-            System.out.println("Sum : " + sum);
+
+            boolean valid = key.reset();
+            if (!valid) break;
 
         }
     }
